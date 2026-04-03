@@ -5,8 +5,8 @@ import math
 
 
 # --- CONFIGURACIÓN INICIAL ---
-ctk.set_appearance_mode("Dark")  # Modo oscuro elegante
-ctk.set_default_color_theme("blue")  # Tema de color azul moderno
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
 
 
 # --- DATOS Y FACTORES DE CONVERSIÓN ---
@@ -21,12 +21,8 @@ FLUIDOS = {
 }
 
 
-# Diccionarios de Conversión (Base: 1 unidad base = X unidad destino)
-# Base Presión: Pascales (Pa)
 CONV_PRESION = {"Pa": 1.0, "atm": 101325.0, "PSI": 6894.76, "mmHg": 133.322, "Bar": 100000.0}
-# Base Densidad: kg/m³
 CONV_DENSIDAD = {"kg/m³": 1.0, "g/cm³": 1000.0, "lb/ft³": 16.0185}
-# Base Longitud: Metros (m)
 CONV_LONGITUD = {
     "Metros (m)": 1.0,
     "Centímetros (cm)": 0.01,
@@ -42,25 +38,18 @@ class AppHidrostatica(ctk.CTk):
         super().__init__()
 
 
-        # Configuración de la Ventana
         self.title("Suite Hidrostática Profesional v19.0 - All in One")
         self.geometry("1400x900")
        
-        # Grid principal 1x1
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-
-        # --- PESTAÑAS PRINCIPALES ---
         self.tabview = ctk.CTkTabview(self, width=1350, height=850)
         self.tabview.pack(padx=20, pady=20, fill="both", expand=True)
-
 
         self.tabview.add("CALCULADORA")
         self.tabview.add("SIMULADOR 3D")
 
-
-        # Inicializar los módulos
         self._init_calculadora(self.tabview.tab("CALCULADORA"))
         self._init_simulador(self.tabview.tab("SIMULADOR 3D"))
 
@@ -81,20 +70,17 @@ class AppHidrostatica(ctk.CTk):
         self.conv_res = tk.StringVar(value="---")
 
 
-        # Layout de columnas
         parent.columnconfigure(0, weight=1)
         parent.columnconfigure(1, weight=1)
         parent.columnconfigure(2, weight=1)
 
 
-        # --- COLUMNA 1: DATOS ---
         frame_datos = ctk.CTkFrame(parent)
         frame_datos.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
        
         ctk.CTkLabel(frame_datos, text="PARÁMETROS", font=("Roboto Medium", 20)).pack(pady=20)
 
 
-        # Fluido
         ctk.CTkLabel(frame_datos, text="Fluido:").pack(anchor="w", padx=20)
         self.c_combo_fluido = ctk.CTkComboBox(frame_datos, values=list(FLUIDOS.keys()), command=self._set_fluido_calc)
         self.c_combo_fluido.pack(fill="x", padx=20, pady=(0, 15))
@@ -105,12 +91,10 @@ class AppHidrostatica(ctk.CTk):
         self._crear_input(frame_datos, "Gravedad (m/s²):", self.c_gravedad)
 
 
-        # Geometría
         ctk.CTkLabel(frame_datos, text="Geometría del Tanque:", text_color="#3B8ED0").pack(anchor="w", padx=20, pady=(20,5))
         self.c_combo_geo = ctk.CTkComboBox(frame_datos, values=["Rectangular", "Cilíndrica"], command=self._update_geo_inputs)
         self.c_combo_geo.pack(fill="x", padx=20, pady=5)
        
-        # Frame dinámico para inputs geométricos
         self.geo_frame = ctk.CTkFrame(frame_datos, fg_color="transparent")
         self.geo_frame.pack(fill="x", padx=5, pady=5)
         self._update_geo_inputs("Rectangular")
@@ -121,7 +105,7 @@ class AppHidrostatica(ctk.CTk):
 
 
         # --- COLUMNA 2: RESULTADOS ---
-        frame_res = ctk.CTkFrame(parent, fg_color="transparent") # Transparente para que floten las tarjetas
+        frame_res = ctk.CTkFrame(parent, fg_color="transparent")
         frame_res.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
 
@@ -137,7 +121,6 @@ class AppHidrostatica(ctk.CTk):
         self._crear_tarjeta_resultado(frame_res, "VOLUMEN DE LÍQUIDO", self.res_vars["V"])
 
 
-        # --- COLUMNA 3: CONVERSOR (AHORA CON LONGITUD) ---
         frame_conv = ctk.CTkFrame(parent)
         frame_conv.grid(row=0, column=2, padx=10, pady=10, sticky="nsew")
        
@@ -157,10 +140,9 @@ class AppHidrostatica(ctk.CTk):
         ctk.CTkButton(frame_conv, text="Convertir", command=self._convertir, fg_color="#546E7A").pack(pady=20)
        
         ctk.CTkLabel(frame_conv, textvariable=self.conv_res, font=("Roboto", 24, "bold"), text_color="#2CC985").pack()
-        self._update_units_conv("Longitud") # Iniciar en longitud por defecto
+        self._update_units_conv("Longitud")
 
 
-    # --- Helpers Calculadora ---
     def _crear_input(self, parent, text, var):
         f = ctk.CTkFrame(parent, fg_color="transparent")
         f.pack(fill="x", padx=20, pady=5)
@@ -221,22 +203,7 @@ class AppHidrostatica(ctk.CTk):
            
             if tipo == "Presión": d = CONV_PRESION
             elif tipo == "Densidad": d = CONV_DENSIDAD
-            else: d = CONV_LONGITUD # Longitud
-           
-            # Conversión: Valor * (Factor U1 / Factor U2)
-            # Como los factores son respecto a la unidad base:
-            # 1. Convertir a base: val * factor_u1
-            # 2. Convertir a destino: val_base / factor_u2
-            # Correccion: Mis diccionarios para Presion y Densidad están definidos como 1 UnidadDestino = X Base
-            # Pero para longitud los definí como 1 Unidad = X Metros
-           
-            # Lógica universal simplificada:
-            # Valor Base = Valor Entrada * Factor(u1)  [Si factor es "cuantos metros es 1 unidad"]
-            # Valor Salida = Valor Base / Factor(u2)
-           
-            # Revisemos diccionarios:
-            # CONV_LONGITUD: "km": 1000.0 -> 1 km son 1000 metros. OK.
-            # CONV_PRESION: "atm": 101325.0 -> 1 atm son 101325 Pa. OK.
+            else: d = CONV_LONGITUD
            
             res = (v * d[u1]) / d[u2]
            
@@ -283,7 +250,6 @@ class AppHidrostatica(ctk.CTk):
         }
 
 
-        # Layout Simulador
         parent.columnconfigure(1, weight=1)
         parent.rowconfigure(0, weight=1)
 
@@ -313,23 +279,18 @@ class AppHidrostatica(ctk.CTk):
         self.frame_sliders_sim.pack(fill="both", expand=True, padx=5, pady=10)
 
 
-        # Botones Animación
         self.btn_animar = ctk.CTkButton(sidebar, text="LLENAR / PAUSAR", command=self._toggle_anim, fg_color="#2CC985", hover_color="#229A65")
         self.btn_animar.pack(fill="x", padx=20, pady=5)
        
         ctk.CTkButton(sidebar, text="VACIAR TANQUE", command=self._reset_sim, fg_color="#D32F2F", hover_color="#B71C1C").pack(fill="x", padx=20, pady=(5,20))
 
 
-        # 2. Canvas Central (Visualización)
         center_frame = ctk.CTkFrame(parent, fg_color="transparent")
         center_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
        
-        # Canvas de Tkinter envuelto en un frame de CTk para borde
         canvas_container = ctk.CTkFrame(center_frame, corner_radius=10, border_width=2, border_color="#3B8ED0")
         canvas_container.pack(fill="both", expand=True)
        
-        # IMPORTANTE: El Canvas sigue siendo tk.Canvas porque CTk no tiene widget de dibujo vectorial avanzado nativo
-        # Pero lo estilizamos para que encaje
         self.canvas = tk.Canvas(canvas_container, bg="white", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True, padx=2, pady=2)
        
@@ -375,7 +336,6 @@ class AppHidrostatica(ctk.CTk):
         self.after(100, self._dibujar)
 
 
-    # --- Helpers Simulador ---
     def _add_header(self, parent, text):
         ctk.CTkLabel(parent, text=text, font=("Roboto", 16, "bold"), text_color="#3B8ED0").pack(pady=20)
 
@@ -385,7 +345,6 @@ class AppHidrostatica(ctk.CTk):
         f.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(f, text=label).pack(side="left")
        
-        # Color hack para usar colores de tema o específicos
         text_col = ["black", "white"] if color == "text_color" else color
         ctk.CTkLabel(f, textvariable=var, font=("Roboto", 16, "bold"), text_color=text_col).pack(side="right")
 
@@ -424,12 +383,10 @@ class AppHidrostatica(ctk.CTk):
         f = ctk.CTkFrame(self.frame_sliders_sim, fg_color="transparent")
         f.pack(fill="x", pady=2)
        
-        # Header: Label + Entry Box
         f_head = ctk.CTkFrame(f, fg_color="transparent")
         f_head.pack(fill="x")
         ctk.CTkLabel(f_head, text=label, font=("Roboto", 11)).pack(side="left")
        
-        # Caja de texto vinculada
         entry_var = tk.StringVar(value=f"{variable.get():.3f}")
         entry = ctk.CTkEntry(f_head, textvariable=entry_var, width=70, height=25, justify="center")
         entry.pack(side="right")
@@ -465,7 +422,7 @@ class AppHidrostatica(ctk.CTk):
         self.canvas.delete("all")
         w_c = self.canvas.winfo_width()
         h_c = self.canvas.winfo_height()
-        if w_c < 50: return # Protección inicial
+        if w_c < 50: return
 
 
         # Datos
@@ -581,7 +538,6 @@ class AppHidrostatica(ctk.CTk):
         ga = self.geo_agua
         if ga['y_s'] <= y <= ga['y_b']:
              if min(ga['xi'], ga['bi']) <= x <= max(ga['xd'], ga['bd']):
-                 # Calculo profundidad aproximada visual
                  total_h_px = ga['y_b'] - ga['y_s']
                  if total_h_px > 0:
                      ratio = (y - ga['y_s']) / total_h_px
